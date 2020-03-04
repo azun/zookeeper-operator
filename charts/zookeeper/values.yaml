@@ -1,4 +1,4 @@
 image:
-  repository: amuraru/zookeeper
-  tag: 3.6.0-adobe-2
+  repository: adobe/zookeeper
+  tag: 3.6.1
   pullPolicy: IfNotPresent

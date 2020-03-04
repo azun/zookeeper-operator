@@ -14,7 +14,9 @@ COPY zu /zu
 WORKDIR /zu
 RUN ./gradlew --console=verbose --info shadowJar
 
-FROM zookeeper:3.6.1
+# use forked base zookeeper 3.6.2 docker image
+# that runs on openjdk-14.0.2 instead of openjdk-11
+FROM amuraru/zookeeper:3.6.2
 COPY bin /usr/local/bin
 RUN chmod +x /usr/local/bin/*
 COPY --from=0 /zu/build/libs/zu.jar /root/

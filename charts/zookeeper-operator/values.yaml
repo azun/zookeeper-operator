@@ -25,6 +25,7 @@ crd:
   create: true
 
 #
-# Specifies which namespace the Operator should watch for new ClusterResource resources
+# Specifies which namespace(s) the Operator should watch for new ClusterResource resources
 # Default: "" == Watch ALL namespaces
+# Multiple namespaces can be configured using a comma separated list of namespaces
 watchNamespace: ""

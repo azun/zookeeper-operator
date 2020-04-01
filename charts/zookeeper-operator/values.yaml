@@ -2,6 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+
 image:
   repository: amuraru/zookeeper-operator
   tag: v0.2.6-adobe-2
@@ -15,6 +16,9 @@ rbac:
 serviceAccount:
   create: true
   name: zookeeper-operator
+  # Lists the secrets you need to use to pull zookeeper-operator image from a private registry.
+  imagePullSecrets: []
+    # - private-registry-key
 
 # Whether to create custom resource
 crd:

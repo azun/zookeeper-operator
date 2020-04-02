@@ -1,4 +1,4 @@
 image:
-  repository: pravega/zookeeper
-  tag: latest
+  repository: amuraru/zookeeper
+  tag: 3.6.0-adobe-2
   pullPolicy: IfNotPresent

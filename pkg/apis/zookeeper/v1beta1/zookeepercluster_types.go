@@ -95,6 +95,10 @@ func (s *ZookeeperClusterSpec) withDefaults(z *ZookeeperCluster) (changed bool) 
 				Name:          "leader-election",
 				ContainerPort: 3888,
 			},
+			{
+				Name:          "metrics",
+				ContainerPort: 7000,
+			},
 		}
 		changed = true
 	}
@@ -182,6 +186,8 @@ func (z *ZookeeperCluster) ZookeeperPorts() Ports {
 			ports.Quorum = p.ContainerPort
 		} else if p.Name == "leader-election" {
 			ports.Leader = p.ContainerPort
+		} else if p.Name == "metrics" {
+			ports.Metrics = p.ContainerPort
 		}
 	}
 	return ports
@@ -194,9 +200,10 @@ func (z *ZookeeperCluster) GetClientServiceName() string {
 
 // Ports groups the ports for a zookeeper cluster node for easy access
 type Ports struct {
-	Client int32
-	Quorum int32
-	Leader int32
+	Client  int32
+	Quorum  int32
+	Leader  int32
+	Metrics int32
 }
 
 // ContainerImage defines the fields needed for a Docker repository image. The

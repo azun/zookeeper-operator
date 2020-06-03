@@ -34,6 +34,7 @@ persistence:
   volumeSize: 20Gi
 
 hooks:
+  enabled: false
   image:
     repository: lachlanevenson/k8s-kubectl
     tag: v1.16.10

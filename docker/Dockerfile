@@ -8,7 +8,7 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM openjdk:11-jdk
+FROM openjdk:14.0.2-slim
 RUN mkdir /zu
 COPY zu /zu
 WORKDIR /zu
@@ -22,4 +22,4 @@ RUN chmod +x /usr/local/bin/*
 COPY --from=0 /zu/build/libs/zu.jar /root/
 
 RUN apt-get -q update && \
-    apt-get install -y dnsutils curl procps
+    apt-get install --no-install-recommends -y curl dnsutils procps

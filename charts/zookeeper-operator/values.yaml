@@ -40,10 +40,3 @@ resources: {}
   # requests:
   #   cpu: 1
   #   memory: 128Mi
-
-hooks:
-  backoffLimit: 10
-  image:
-    repository: lachlanevenson/k8s-kubectl
-    tag: v1.16.10
-

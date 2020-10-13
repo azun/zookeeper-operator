@@ -46,9 +46,20 @@ var _ = Describe("Generators Spec", func() {
 						Name:      "example",
 						Namespace: "default",
 					},
+					Spec: v1beta1.ZookeeperClusterSpec{
+						Labels: map[string]string{
+							"exampleLabel": "exampleValue",
+						},
+					},
 				}
 				z.WithDefaults()
 				cm = zk.MakeConfigMap(z)
+			})
+
+			It("should have custom labels set", func() {
+				Ω(cm.GetLabels()).To(HaveKeyWithValue(
+					"exampleLabel",
+					"exampleValue"))
 			})
 
 			Context("zoo.cfg", func() {
@@ -152,6 +163,41 @@ var _ = Describe("Generators Spec", func() {
 		})
 	})
 
+	Context("#MakeStatefulSet", func() {
+		var sts *appsv1.StatefulSet
+
+		Context("with defaults", func() {
+
+			BeforeEach(func() {
+				z := &v1beta1.ZookeeperCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "example",
+						Namespace: "default",
+					},
+					Spec: v1beta1.ZookeeperClusterSpec{
+						Labels: map[string]string{
+							"exampleLabel": "exampleValue",
+						},
+					},
+				}
+				z.WithDefaults()
+				sts = zk.MakeStatefulSet(z)
+			})
+
+			It("should have custom labels set", func() {
+				Ω(sts.GetLabels()).To(HaveKeyWithValue(
+					"exampleLabel",
+					"exampleValue"))
+			})
+
+			It("should have custom labels set on pods", func() {
+				Ω(sts.Spec.Template.ObjectMeta.Labels).To(HaveKeyWithValue(
+					"exampleLabel",
+					"exampleValue"))
+			})
+		})
+	})
+
 	Context("#MakeStatefulSet with Ephemeral storage", func() {
 		var sts *appsv1.StatefulSet
 
@@ -190,6 +236,9 @@ var _ = Describe("Generators Spec", func() {
 				},
 				Spec: v1beta1.ZookeeperClusterSpec{
 					DomainName: domainName,
+					Labels: map[string]string{
+						"exampleLabel": "exampleValue",
+					},
 				},
 			}
 			z.WithDefaults()
@@ -214,6 +263,12 @@ var _ = Describe("Generators Spec", func() {
 			mapLength := len(s.GetAnnotations())
 			Ω(mapLength).To(Equal(0))
 		})
+
+		It("should have custom labels set", func() {
+			Ω(s.GetLabels()).To(HaveKeyWithValue(
+				"exampleLabel",
+				"exampleValue"))
+		})
 	})
 
 	Context("#MakeHeadlessService", func() {
@@ -229,6 +284,9 @@ var _ = Describe("Generators Spec", func() {
 				},
 				Spec: v1beta1.ZookeeperClusterSpec{
 					DomainName: domainName,
+					Labels: map[string]string{
+						"exampleLabel": "exampleValue",
+					},
 				},
 			}
 			z.WithDefaults()
@@ -272,6 +330,12 @@ var _ = Describe("Generators Spec", func() {
 				"external-dns.alpha.kubernetes.io/hostname",
 				"example-headless.zk.com."))
 		})
+
+		It("should have custom labels set", func() {
+			Ω(s.GetLabels()).To(HaveKeyWithValue(
+				"exampleLabel",
+				"exampleValue"))
+		})
 	})
 	Context("#MakeHeadlessService dnsname without dot", func() {
 		var s *v1.Service
@@ -313,6 +377,9 @@ var _ = Describe("Generators Spec", func() {
 				},
 				Spec: v1beta1.ZookeeperClusterSpec{
 					DomainName: domainName,
+					Labels: map[string]string{
+						"exampleLabel": "exampleValue",
+					},
 				},
 			}
 			z.WithDefaults()
@@ -324,9 +391,14 @@ var _ = Describe("Generators Spec", func() {
 			Ω(pdb.GetObjectKind().GroupVersionKind().Kind).To(Equal("PodDisruptionBudget"))
 		})
 
-		It("should have slector is zookeeper cluster name", func() {
+		It("should have selector is zookeeper cluster name", func() {
 			Ω(pdb.Spec.Selector.MatchLabels["app"]).To(BeEquivalentTo(zkClusterName))
 		})
 
+		It("should have custom labels set", func() {
+			Ω(pdb.GetLabels()).To(HaveKeyWithValue(
+				"exampleLabel",
+				"exampleValue"))
+		})
 	})
 })

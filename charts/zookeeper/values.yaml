@@ -2,7 +2,7 @@ replicas: 3
 
 image:
   repository: adobe/zookeeper
-  tag: 3.6.2
+  tag: 3.6.2-0.2.9-adobe-20201020
   pullPolicy: IfNotPresent
 
 domainName:

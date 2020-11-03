@@ -17,6 +17,10 @@ source /usr/local/bin/zookeeperFunctions.sh
 DATA_DIR=/data
 MYID_FILE=$DATA_DIR/myid
 LOG4J_CONF=/conf/log4j-quiet.properties
+DYNCONFIG=$DATA_DIR/zoo.cfg.dynamic
+
+# CLIENT_HOST=zk1-0.zk1-headless.ns-team-aep-pipeline-kafka-1-dev
+# CLIENT_PORT=2181
 
 # Wait for client connections to drain. Kubernetes will wait until the confiugred
 # "terminationGracePeriodSeconds" before focibly killing the container
@@ -45,6 +49,9 @@ if [[ -n "$CLUSTERSIZE" && "$CLUSTERSIZE" -lt "$MYID" ]]; then
   java -Dlog4j.configuration=file:"$LOG4J_CONF" -jar /root/zu.jar remove $ZKURL $MYID
   echo $?
 fi
+
+# remove the node from enssamble while downsizeing or rolling restart
+# java -Dlog4j.configuration=file:"$LOG4J_CONF" -jar /root/zu.jar remove $ZKURL $MYID
 
 # Kill the primary process ourselves to circumvent the terminationGracePeriodSeconds
 ps -ef | grep zoo.cfg | grep -v grep | awk '{print $2}' | xargs kill

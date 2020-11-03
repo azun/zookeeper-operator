@@ -10,7 +10,6 @@
 #
 
 set -ex
-
 source /conf/env.sh
 source /usr/local/bin/zookeeperFunctions.sh
 
@@ -20,12 +19,17 @@ MYID_FILE=$DATA_DIR/myid
 LOG4J_CONF=/conf/log4j-quiet.properties
 STATIC_CONFIG=/data/conf/zoo.cfg
 
+#vars that should come from env.sh
+OFFSET=${OFFSET:-1}
+MIGRATION_MODE=${MIGRATION_MODE:-0}
+FQDN_TEMPLATE=${FQDN_TEMPLATE:-$CLIENT_HOST}
+
 OK=$(echo ruok | nc 127.0.0.1 $CLIENT_PORT)
 
 # Check to see if zookeeper service answers
 if [[ "$OK" == "imok" ]]; then
   set +e
-  getent hosts $DOMAIN
+  nc -v -w1 $CLIENT_HOST $CLIENT_PORT
   if [[ $? -ne 0 ]]; then
     set -e
     echo "There is no active ensemble, skipping readiness probe..."
@@ -44,7 +48,7 @@ if [[ "$OK" == "imok" ]]; then
         echo Failed to parse name and ordinal of Pod
         exit 1
     fi
-    MYID=$((ORD+1))
+    MYID=$((${ORD}+${OFFSET}))
     ONDISK_CONFIG=false
     if [ -f $MYID_FILE ]; then
       EXISTING_ID="`cat $DATA_DIR/myid`"
@@ -74,7 +78,10 @@ if [[ "$OK" == "imok" ]]; then
       echo "Zookeeper service is ready to be upgraded from observer to participant."
       ROLE=participant
       ZKURL=$(zkConnectionString)
-      ZKCONFIG=$(zkConfig)
+      if [ $MIGRATION_MODE -eq 1 ]; then
+        OUTSIDE_NAME=$(echo ${FQDN_TEMPLATE} | sed "s/%/$(($ORD+1))/g")
+      fi
+      ZKCONFIG=$(zkConfig ${OUTSIDE_NAME})
       java -Dlog4j.configuration=file:"$LOG4J_CONF" -jar /root/zu.jar remove $ZKURL $MYID
       sleep 1
       java -Dlog4j.configuration=file:"$LOG4J_CONF" -jar /root/zu.jar add $ZKURL $MYID $ZKCONFIG

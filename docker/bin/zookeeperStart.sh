@@ -10,9 +10,18 @@
 #
 
 set -ex
+# SLEEP=20
+# echo "Wait ${SLEEP} sec for CM update, if any"
+# sleep ${SLEEP}
 
 source /conf/env.sh
 source /usr/local/bin/zookeeperFunctions.sh
+
+# OFFSET=4
+# CLIENT_HOST=zk1-0.zk1-headless.ns-team-aep-pipeline-kafka-1-dev
+# CLIENT_PORT=2181
+# MIGRATION_MODE=0|1
+# FQDN_TEMPLATE=
 
 HOST=`hostname -s`
 DATA_DIR=/data
@@ -30,7 +39,16 @@ else
     exit 1
 fi
 
-MYID=$((ORD+1))
+OFFSET=${OFFSET:-1}
+MIGRATION_MODE=${MIGRATION_MODE:-0}
+FQDN_TEMPLATE=${FQDN_TEMPLATE:-$CLIENT_HOST}
+CLIENT_HOST=${SEED_NODE:-$CLIENT_HOST}
+MYID=$(($ORD+$OFFSET))
+FIRST_NODE=$OFFSET
+
+if [ $MIGRATION_MODE -eq 1 ]; then
+  OUTSIDE_NAME=$(echo ${FQDN_TEMPLATE} | sed "s/%/$(($ORD+1))/g")
+fi
 
 # Values for first startup
 WRITE_CONFIGURATION=true
@@ -39,11 +57,20 @@ ONDISK_MYID_CONFIG=false
 ONDISK_DYN_CONFIG=false
 
 # Check validity of on-disk configuration
-if [ -f $MYID_FILE ]; then
-  EXISTING_ID="`cat $DATA_DIR/myid`"
-  if [[ "$EXISTING_ID" == "$MYID" && -f $STATIC_CONFIG ]]; then
-    # If Id is correct and configuration is present under `/data/conf`
-      ONDISK_MYID_CONFIG=true
+if [ -f $MYID_FILE ] && [ -f $STATIC_CONFIG ]; then
+  MYID=$(cat $MYID_FILE)
+  ONDISK_MYID_CONFIG=true
+  
+  # 4 5 6
+  # 1 2 3
+  if [ -f $DATA_DIR/migration_mode ]; then
+    MIGRATION_MODE_STATUS=$(cat $DATA_DIR/migration_mode)
+    if [ -n $MIGRATION_MODE_STATUS ] && [ $MIGRATION_MODE_STATUS -ne 0 ] && [ $MIGRATION_MODE_STATUS -ne $MIGRATION_MODE ]; then
+      MYID=$(($ORD+$OFFSET))
+      echo $MYID > $MYID_FILE
+      ONDISK_MYID_CONFIG=false
+      FIRST_NODE=3
+    fi
   fi
 fi
 
@@ -71,23 +98,9 @@ set -e
 
 # Determine if there is an ensemble available to join by checking the service domain
 set +e
-getent hosts $DOMAIN  # This only performs a dns lookup
+nc -v -w2 $CLIENT_HOST $CLIENT_PORT  # This only performs a dns lookup
 if [[ $? -ne 0 ]]; then
-  # If dns lookup of the headless service domain fails, then there is no
-  # active ensemble yet, but in certain cases the dns lookup of headless service
-  # takes a while to come up even if there is active ensemble
   ACTIVE_ENSEMBLE=false
-  declare -i count=20
-  while [[ $count -ge 0 ]]
-  do
-    sleep 2
-    ((count=count-1))
-    getent hosts $DOMAIN
-    if [[ $? -eq 0 ]]; then
-      ACTIVE_ENSEMBLE=true
-      break
-    fi
-  done
 else
   ACTIVE_ENSEMBLE=true
 fi
@@ -103,21 +116,16 @@ if [[ "$ACTIVE_ENSEMBLE" == false ]]; then
   # This is the first node being added to the cluster or headless service not yet available
   REGISTER_NODE=false
 else
-  # An ensemble exists, check to see if this node is already a member.
-  if [[ "$ONDISK_MYID_CONFIG" == false || "$ONDISK_DYN_CONFIG" == false ]]; then
-    REGISTER_NODE=true
-  else
-    REGISTER_NODE=false
-  fi
+  REGISTER_NODE=true
 fi
 
 if [[ "$WRITE_CONFIGURATION" == true ]]; then
   echo "Writing myid: $MYID to: $MYID_FILE."
   echo $MYID > $MYID_FILE
-  if [[ $MYID -eq 1 ]]; then
+  if [[ $MYID -eq $FIRST_NODE ]]; then
     ROLE=participant
     echo Initial initialization of ordinal 0 pod, creating new config.
-    ZKCONFIG=$(zkConfig)
+    ZKCONFIG=$(zkConfig ${OUTSIDE_NAME})
     echo Writing bootstrap configuration with the following config:
     echo $ZKCONFIG
     echo $MYID > $MYID_FILE
@@ -128,10 +136,12 @@ fi
 if [[ "$REGISTER_NODE" == true ]]; then
     ROLE=observer
     ZKURL=$(zkConnectionString)
-    ZKCONFIG=$(zkConfig)
+    ZKCONFIG=$(zkConfig ${OUTSIDE_NAME})
     set -e
     echo Registering node and writing local configuration to disk.
     java -Dlog4j.configuration=file:"$LOG4J_CONF" -jar /root/zu.jar add $ZKURL $MYID  $ZKCONFIG $DYNCONFIG
+    # ZKCONFIG=$(zkConfig)
+    # sed -i "s|server.${MYID}=.*|server.${MYID}=${ZKCONFIG}|g" $DYNCONFIG
     set +e
 fi
 
@@ -140,14 +150,24 @@ export ZOOCFGDIR
 echo Copying /conf contents to writable directory, to support Zookeeper dynamic reconfiguration
 if [[ ! -d "$ZOOCFGDIR" ]]; then
   mkdir $ZOOCFGDIR
-  cp -f /conf/zoo.cfg $ZOOCFGDIR
-else
-  echo Copying the /conf/zoo.cfg contents except the dynamic config file during restart
-  echo -e "$( head -n -1 /conf/zoo.cfg )""\n""$( tail -n 1 "$STATIC_CONFIG" )" > $STATIC_CONFIG
 fi
+# safe to do only with register node/active ensamble
+cp -f /conf/zoo.cfg $ZOOCFGDIR
+
 cp -f /conf/log4j.properties $ZOOCFGDIR
 cp -f /conf/log4j-quiet.properties $ZOOCFGDIR
 cp -f /conf/env.sh $ZOOCFGDIR
+
+echo $MIGRATION_MODE > $DATA_DIR/migration_mode
+
+echo "Static config"
+cat $STATIC_CONFIG
+
+echo "Dynamic config"
+cat $DYNCONFIG
+
+echo "Real dynamic config"
+cat $(grep -i dynamicConfigFile $STATIC_CONFIG | cut -f 2 -d "=")
 
 if [ -f $DYNCONFIG ]; then
   # Node registered, start server

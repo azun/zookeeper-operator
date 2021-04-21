@@ -46,7 +46,7 @@ RUN set -eux; \
         local success=; \
         local distUrl=; \
         for distUrl in \
-            'https://www.apache.org/dyn/closer.cgi?action=download&filename=' \
+	        https://downloads.apache.org/ \
             https://www-us.apache.org/dist/ \
             https://www.apache.org/dist/ \
             https://archive.apache.org/dist/ \
